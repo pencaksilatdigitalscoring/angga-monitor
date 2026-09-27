@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Score | 2 CAHAYA DIGITAL SCORING</title>
+    
+    <!-- Tailwind CSS & Font Awesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap');
+        
+        body { 
+            font-family: 'Montserrat', sans-serif; 
+            background-color: #f1f5f9;
+            color: #1e293b;
+            overscroll-behavior-y: none;
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Bottom Nav Styling */
+        .bottom-nav {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        .nav-item {
+            transition: all 0.3s ease;
+        }
+        .nav-item.active {
+            color: #0ea5e9;
+            transform: translateY(-2px);
+        }
+        .nav-item.active i {
+            background-color: #e0f2fe;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+
+        /* Score Box Animation */
+        .score-change {
+            animation: pop 0.3s ease-out;
+        }
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Gradient Backgrounds */
+        .bg-sudut-biru { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+        .bg-sudut-merah { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); }
+        .bg-tie-break { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+
+        /* Badge Penalty */
+        .badge-pen {
+            display: flex; align-items: center; justify-content: center;
+            width: 20px; height: 20px; border-radius: 4px;
+            background: rgba(255,255,255,0.2); font-size: 10px; font-weight: bold;
+        }
+        .badge-pen.active-b { background: #fbbf24; color: #000; box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+        .badge-pen.active-m { background: #fbbf24; color: #000; box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden relative">
+
+    <!-- Header / Top Bar -->
+    <header class="bg-slate-900 text-white p-4 shadow-lg z-20 flex justify-between items-center flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-trophy text-sky-400 text-2xl"></i>
+            <div>
+                <h1 class="font-black text-sm md:text-lg uppercase tracking-widest leading-tight"><span class="text-amber-500">2 CAHAYA</span> LIVE</h1>
+                <p class="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">Digital Scoring System</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full">
+            <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span class="text-[8px] md:text-[10px] font-bold text-emerald-400 uppercase tracking-widest" id="conn-status">Terhubung</span>
+        </div>
+    </header>
+
+    <!-- CONTENT AREA -->
+    <main class="flex-1 overflow-y-auto custom-scroll relative bg-slate-100 pb-20 md:pb-0" id="main-content">
+        
+        <!-- VIEW 1: LIVE MONITOR -->
+        <section id="view-monitor" class="min-h-full p-4 flex flex-col items-center justify-center hidden">
+            <!-- Akan di-render oleh JS -->
+            <div id="monitor-container" class="w-full max-w-5xl">
+                <div class="text-center text-slate-400 my-20">
+                    <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                    <p class="font-bold uppercase tracking-widest text-sm">Memuat Data Live...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: JADWAL PERTANDINGAN -->
+        <section id="view-jadwal" class="min-h-full p-4 hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex justify-between items-end mb-4">
+                    <div>
+                        <h2 class="text-xl font-black text-slate-800 uppercase italic">Jadwal Pertandingan</h2>
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Daftar Partai Keseluruhan</p>
+                    </div>
+                    <div class="bg-white px-3 py-1 rounded-lg shadow-sm border border-slate-200 text-xs font-bold text-slate-600">
+                        Total: <span id="total-jadwal">0</span>
+                    </div>
+                </div>
+
+                <!-- Container List Jadwal -->
+                <div id="jadwal-container" class="space-y-3">
+                    <!-- Data Jadwal Dirender Disini -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- BOTTOM NAVIGATION (MOBILE) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-50 bottom-nav md:hidden">
+        <div class="flex justify-around items-center pt-2 pb-1">
+            <button onclick="switchView('monitor')" id="nav-monitor" class="nav-item active flex flex-col items-center gap-1 w-1/2 text-slate-400">
+                <i class="fas fa-tv text-xl transition-all"></i>
+                <span class="text-[10px] font-black uppercase tracking-widest">Live Score</span>
+            </button>
+            <button onclick="switchView('jadwal')" id="nav-jadwal" class="nav-item flex flex-col items-center gap-1 w-1/2 text-slate-400">
+                <i class="fas fa-list-ol text-xl transition-all"></i>
+                <span class="text-[10px] font-black uppercase tracking-widest">Jadwal</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- SCRIPT FIREBASE & LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // Konfigurasi Firebase dari Admin
+        const firebaseConfig = {
+  apiKey: "AIzaSyAG7vX-kqJg4WYRUZY6F1wLRwySNdpkd7o",
+  authDomain: "angga-medan.firebaseapp.com",
+  databaseURL: "https://angga-medan-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "angga-medan",
+  storageBucket: "angga-medan.firebasestorage.app",
+  messagingSenderId: "621562825182",
+  appId: "1:621562825182:web:6428a21e3cd8ed12b4354f"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const dbRef = ref(database, 'pencak_scoring_state');
+
+        let globalState = null;
+        let lastScoreB = 0;
+        let lastScoreM = 0;
+
+        // FUNGSI NAVIGASI
+        window.switchView = function(view) {
+            document.getElementById('view-monitor').classList.add('hidden');
+            document.getElementById('view-jadwal').classList.add('hidden');
+            document.getElementById('nav-monitor').classList.remove('active');
+            document.getElementById('nav-jadwal').classList.remove('active');
+
+            document.getElementById(`view-${view}`).classList.remove('hidden');
+            document.getElementById(`nav-${view}`).classList.add('active');
+
+            // Scroll ke atas saat ganti tab
+            document.getElementById('main-content').scrollTo(0,0);
+        }
+
+        // FUNGSI KALKULASI SKOR (Sama Persis dengan Admin)
+        function calculateTotal(state, s) { 
+            const sc = state[s]; 
+            if(!sc || sc.dis || sc.ud || sc.wmp) return 0; 
+            
+            const j1T = (sc.juri?.j1 || [0,0,0]).reduce((a,b)=>a+b,0);
+            const j2T = (sc.juri?.j2 || [0,0,0]).reduce((a,b)=>a+b,0);
+            const j3T = (sc.juri?.j3 || [0,0,0]).reduce((a,b)=>a+b,0);
+            
+            const sorted = [j1T, j2T, j3T].sort((a,b)=>a-b); 
+            const tot = sorted[1]; // Ambil nilai tengah (Median)
+            
+            const pMap = { teguran1:1, teguran2:2, peringatan1:5, peringatan2:10 }; 
+            let tp = 0; 
+            (sc.penHistory || []).forEach(i => tp += (pMap[i.type]||0)); 
+            
+            return (tot || 0) + (sc.jat || 0) - tp; 
+        }
+
+        // FORMAT WAKTU
+        const formatTime = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${((s||0)%60).toString().padStart(2,'0')}`;
+
+        // MENDENGARKAN DATA REALTIME
+        onValue(dbRef, (snapshot) => {
+            if (snapshot.exists()) {
+                globalState = snapshot.val();
+                document.getElementById('conn-status').innerText = "Online";
+                document.getElementById('conn-status').classList.replace('text-red-400', 'text-emerald-400');
+                
+                renderMonitor();
+                renderJadwal();
+            } else {
+                document.getElementById('conn-status').innerText = "Database Kosong";
+                document.getElementById('conn-status').classList.replace('text-emerald-400', 'text-red-400');
+            }
+        });
+
+        // RENDER LIVE MONITOR
+        function renderMonitor() {
+            const container = document.getElementById('monitor-container');
+            const state = globalState;
+
+            // Cek apakah Operator mengatur layar monitor ke Matchlist atau Score
+            if(state.monViewMode === 'list') {
+                renderLiveMatchList(container, state);
+                return;
+            }
+
+            // Jika mode 'score'
+            const liveIdx = state.bertandingIdx;
+            
+            // Jika tidak ada partai yang sedang tanding
+            if(liveIdx < 0) {
+                const prepIdx = state.persiapanIdx;
+                let prepHtml = '';
+                if(prepIdx >= 0 && state.matches[prepIdx]) {
+                    const m = state.matches[prepIdx];
+                    prepHtml = `
+                        <div class="mt-8 bg-white p-6 rounded-3xl shadow-xl max-w-md mx-auto border border-slate-100">
+                            <p class="text-xs font-black text-amber-500 uppercase tracking-widest mb-4">Partai Persiapan Selanjutnya</p>
+                            <h2 class="text-xl font-black uppercase mb-1">PARTAI ${m.p}</h2>
+                            <p class="text-xs font-bold text-slate-500 uppercase mb-4">${m.fase} - KELAS ${m.kelas} ${m.cat} ${m.gender}</p>
+                            <div class="flex justify-between items-center bg-slate-50 p-4 rounded-2xl">
+                                <div class="text-left w-2/5"><p class="font-black text-blue-600 text-sm uppercase truncate">${m.b}</p><p class="text-[8px] font-bold text-slate-400 uppercase truncate">${m.kb}</p></div>
+                                <div class="text-slate-300 font-black italic">VS</div>
+                                <div class="text-right w-2/5"><p class="font-black text-red-600 text-sm uppercase truncate">${m.m}</p><p class="text-[8px] font-bold text-slate-400 uppercase truncate">${m.km}</p></div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                container.innerHTML = `
+                    <div class="text-center py-20">
+                        <div class="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <i class="fas fa-bed text-4xl text-slate-400"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-800 uppercase italic">Istirahat / Menunggu</h2>
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Belum ada partai yang dimulai</p>
+                        ${prepHtml}
+                    </div>
+                `;
+                return;
+            }
+
+            // --- JIKA ADA PARTAI LIVE ---
+            const mb = state.matches[liveIdx];
+            
+            // Hitung Skor
+            let tb = calculateTotal(state, 'biru');
+            let tm = calculateTotal(state, 'merah');
+            
+            // Animasi jika skor berubah
+            let animB = (tb !== lastScoreB) ? 'score-change' : '';
+            let animM = (tm !== lastScoreM) ? 'score-change' : '';
+            lastScoreB = tb; lastScoreM = tm;
+
+            // Pengecekan Status Khusus (WMP, DISK, UD)
+            let valB = state.biru.dis ? "DISK" : state.biru.ud ? "UD" : state.biru.wmp ? "WMP" : tb;
+            let valM = state.merah.dis ? "DISK" : state.merah.ud ? "UD" : state.merah.wmp ? "WMP" : tm;
+
+            // Jika status selesai, tampilkan Pemenang
+            if(mb.status === 'selesai' && mb.winnerSide) {
+                const isRed = mb.winnerSide === 'merah'; 
+                const isTie = mb.winnerSide === 'tie';
+                const bgClass = isTie ? 'bg-tie-break' : (isRed ? 'bg-sudut-merah' : 'bg-sudut-biru');
+                const winName = isTie ? 'KEPUTUSAN DEWAN' : (isRed ? mb.m : mb.b);
+                const winKont = isTie ? 'SCORE SERI' : (isRed ? mb.km : mb.kb);
+                
+                container.innerHTML = `
+                    <div class="${bgClass} text-white p-8 md:p-12 rounded-[2.5rem] shadow-2xl text-center w-full max-w-2xl mx-auto flex flex-col items-center justify-center">
+                        <i class="fas fa-medal text-5xl md:text-7xl text-amber-300 mb-6 drop-shadow-lg"></i>
+                        <p class="text-xs md:text-sm font-black mb-2 uppercase tracking-widest opacity-80">PEMENANG PARTAI ${mb.p}</p>
+                        <h1 class="text-3xl md:text-5xl font-black uppercase leading-tight mb-2 drop-shadow-md">${winName}</h1>
+                        <h2 class="text-sm md:text-xl font-bold uppercase opacity-90">${winKont}</h2>
+                        <div class="mt-8 bg-white/20 backdrop-blur-md px-6 py-2 rounded-full font-black text-sm md:text-lg">
+                            SKOR AKHIR: ${valB} - ${valM}
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Fungsi helper untuk badge penalti
+            const getPenHTML = (s) => {
+                const hist = state[s].penHistory || [];
+                const check = (type) => type.startsWith('peringatan') ? hist.some(x => x.type === type) : hist.some(x => x.type === type && x.round === state.babak);
+                const actClass = s === 'biru' ? 'active-b' : 'active-m';
+                return `
+                    <div class="flex justify-center gap-1 mt-3">
+                        <div class="badge-pen ${check('binaan1') ? actClass : ''}"><i class="fas fa-hand-point-${s==='biru'?'left':'right'}"></i></div>
+                        <div class="badge-pen ${check('binaan2') ? actClass : ''}"><i class="fas fa-hand-peace rotate-90"></i></div>
+                        <div class="badge-pen ${check('teguran1') ? actClass : ''}"><i class="fas fa-hand-point-up"></i></div>
+                        <div class="badge-pen ${check('teguran2') ? actClass : ''}"><i class="fas fa-hand-peace"></i></div>
+                        <div class="badge-pen ${check('peringatan1') ? actClass : ''}">1</div>
+                        <div class="badge-pen ${check('peringatan2') ? actClass : ''}">2</div>
+                    </div>
+                `;
+            };
+
+            const dropB = (state.biru.jatHistory || []).filter(j => j.round === state.babak).length;
+            const dropM = (state.merah.jatHistory || []).filter(j => j.round === state.babak).length;
+
+            // Render UI Layar Live (Grid untuk Desktop, Kolom untuk Mobile)
+            container.innerHTML = `
+                <!-- Header Info -->
+                <div class="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 mb-4 text-center">
+                    <h2 class="text-[11px] md:text-sm font-black text-slate-800 uppercase tracking-widest">
+                        PARTAI ${mb.p} - ${mb.fase}
+                    </h2>
+                    <p class="text-[9px] md:text-xs font-bold text-slate-500 uppercase mt-1">
+                        KELAS ${mb.kelas} ${mb.cat} ${mb.gender}
+                    </p>
+                </div>
+
+                <!-- Scoreboard Area -->
+                <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 md:gap-6 items-stretch">
+                    
+                    <!-- SUDUT BIRU -->
+                    <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden flex flex-col order-2 md:order-1 border border-slate-100 relative">
+                        <div class="bg-sudut-biru text-white p-4 text-center relative">
+                            <h3 class="font-black text-xl md:text-2xl uppercase truncate leading-tight">${mb.b}</h3>
+                            <p class="text-[10px] md:text-xs font-bold opacity-80 uppercase truncate">${mb.kb}</p>
+                            <div class="absolute top-2 left-2 bg-white/20 px-2 py-1 rounded text-[8px] font-black uppercase">Drop: ${dropB}x</div>
+                        </div>
+                        <div class="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50">
+                            <span class="text-[5rem] md:text-[7rem] font-black leading-none text-slate-800 ${animB}">${valB}</span>
+                        </div>
+                        <div class="p-3 bg-white border-t border-slate-100">
+                            ${getPenHTML('biru')}
+                        </div>
+                    </div>
+
+                    <!-- CENTER INFO (Timer & Round) -->
+                    <div class="flex flex-col items-center justify-center bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 order-1 md:order-2">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">TIMER</p>
+                        <div class="text-4xl md:text-5xl font-black font-mono text-slate-800 tracking-tighter mb-4 ${state.isRunning ? 'text-red-600 animate-pulse' : ''}">
+                            ${formatTime(state.timer)}
+                        </div>
+                        
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 mt-2">ROUND</p>
+                        <div class="flex gap-2">
+                            ${[1,2,3].map(r => `
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black border-2 transition-all ${state.babak === r ? 'bg-slate-800 text-white border-slate-800 scale-110 shadow-md' : 'bg-slate-100 text-slate-400 border-slate-200'}">
+                                    ${r === 1 ? 'I' : r === 2 ? 'II' : 'III'}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- SUDUT MERAH -->
+                    <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden flex flex-col order-3 md:order-3 border border-slate-100 relative">
+                        <div class="bg-sudut-merah text-white p-4 text-center relative">
+                            <h3 class="font-black text-xl md:text-2xl uppercase truncate leading-tight">${mb.m}</h3>
+                            <p class="text-[10px] md:text-xs font-bold opacity-80 uppercase truncate">${mb.km}</p>
+                            <div class="absolute top-2 right-2 bg-white/20 px-2 py-1 rounded text-[8px] font-black uppercase">Drop: ${dropM}x</div>
+                        </div>
+                        <div class="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50">
+                            <span class="text-[5rem] md:text-[7rem] font-black leading-none text-slate-800 ${animM}">${valM}</span>
+                        </div>
+                        <div class="p-3 bg-white border-t border-slate-100">
+                            ${getPenHTML('merah')}
+                        </div>
+                    </div>
+
+                </div>
+            `;
+        }
+
+        // RENDER LIST JIKA OPERATOR MINTA LIST LIVE
+        function renderLiveMatchList(container, state) {
+            const list = state.matches.filter(m => m.m || m.b);
+            const bIdx = state.bertandingIdx;
+            
+            // Ambil 5 partai yang sedang live / persiapan saja
+            const displayList = list.filter(m => {
+                const realIdx = m.p - 1;
+                return realIdx >= bIdx && realIdx <= bIdx + 4;
+            });
+
+            container.innerHTML = `
+                <div class="w-full max-w-3xl mx-auto">
+                    <h2 class="text-xl font-black text-slate-800 uppercase italic mb-4 text-center"><i class="fas fa-list-ul mr-2"></i> Daftar Panggilan Live</h2>
+                    <div class="space-y-3">
+                        ${displayList.map(m => {
+                            const realIdx = m.p - 1;
+                            const isLive = realIdx === bIdx;
+                            const badge = isLive ? `<span class="bg-red-500 text-white px-3 py-1 rounded-full text-[9px] font-black animate-pulse shadow-sm">SEDANG TANDING</span>` : `<span class="bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-[9px] font-black">PERSIAPAN</span>`;
+                            
+                            return `
+                                <div class="bg-white p-4 rounded-2xl shadow-md border ${isLive ? 'border-red-300' : 'border-slate-200'}">
+                                    <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
+                                        <span class="font-black text-xs text-slate-800 uppercase">Partai ${m.p} - ${m.fase}</span>
+                                        ${badge}
+                                    </div>
+                                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-3 text-center bg-slate-50 py-1 rounded-md">KELAS ${m.kelas} ${m.cat} ${m.gender}</div>
+                                    <div class="flex justify-between items-center">
+                                        <div class="text-left w-2/5"><p class="font-black text-blue-600 text-xs uppercase truncate">${m.b}</p><p class="text-[8px] font-bold text-slate-400 uppercase truncate">${m.kb}</p></div>
+                                        <div class="text-slate-300 font-black italic text-xs">VS</div>
+                                        <div class="text-right w-2/5"><p class="font-black text-red-600 text-xs uppercase truncate">${m.m}</p><p class="text-[8px] font-bold text-slate-400 uppercase truncate">${m.km}</p></div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // RENDER JADWAL KESELURUHAN
+        function renderJadwal() {
+            const container = document.getElementById('jadwal-container');
+            if(!globalState || !globalState.matches) return;
+
+            const list = globalState.matches.filter(m => m.m || m.b);
+            document.getElementById('total-jadwal').innerText = list.length;
+
+            if(list.length === 0) {
+                container.innerHTML = `<div class="text-center p-10 text-slate-400 font-bold uppercase text-xs">Belum ada jadwal</div>`;
+                return;
+            }
+
+            container.innerHTML = list.map(m => {
+                const isLive = globalState.bertandingIdx === (m.p - 1);
+                const isDone = m.status === 'selesai';
+                
+                let statusHtml = '';
+                if(isLive) statusHtml = `<span class="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-black uppercase animate-pulse">Live</span>`;
+                else if(isDone) statusHtml = `<span class="text-[9px] bg-slate-800 text-white px-2 py-0.5 rounded font-black uppercase">${m.totalB} - ${m.totalM}</span>`;
+
+                const blueStyle = (isDone && m.winnerSide === 'merah') ? 'text-slate-400 line-through' : 'text-blue-600';
+                const redStyle = (isDone && m.winnerSide === 'biru') ? 'text-slate-400 line-through' : 'text-red-600';
+
+                return `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all ${isLive ? 'border-l-4 border-l-red-500' : ''}">
+                        <div class="flex justify-between items-center text-[10px] text-slate-500 font-bold border-b border-slate-100 pb-2 mb-3">
+                            <span class="uppercase font-black text-slate-700">Partai ${m.p} | ${m.fase}</span>
+                            <span class="uppercase bg-slate-50 px-2 py-1 rounded border">${m.kelas} ${m.cat}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="${blueStyle} font-black text-xs uppercase truncate w-2/5">
+                                ${m.b}
+                                <div class="text-[8px] text-slate-400 mt-0.5 font-bold truncate ${isDone && m.winnerSide === 'merah' ? '' : 'text-blue-400'}">${m.kb}</div>
+                            </div>
+                            <div class="flex flex-col items-center justify-center px-2">
+                                ${statusHtml || `<span class="text-[8px] font-black text-slate-300 italic">VS</span>`}
+                            </div>
+                            <div class="${redStyle} font-black text-xs text-right uppercase truncate w-2/5">
+                                ${m.m}
+                                <div class="text-[8px] text-slate-400 mt-0.5 font-bold truncate ${isDone && m.winnerSide === 'biru' ? '' : 'text-red-400'}">${m.km}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Tampilkan Live Score sebagai default saat web dimuat
+        switchView('monitor');
+
+    </script>
+</body>
+</html>
